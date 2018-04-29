@@ -12,6 +12,8 @@ module POINT2 (
   reg signed [31:0] a_i_r, a_i_i, b_i_r, b_i_i, c_i_r, c_i_i, d_i_r, d_i_i;
   reg signed [63:0] temp_real_1, temp_imaginary_1;
   reg signed [63:0] temp_a_o, temp_b_o;
+  reg signed [63:0] a_o_d1, b_o_d1;
+  reg signed [63:0] next_a_o_d1, next_b_o_d1;
 
   always @(*)begin
     a_i_r = a_i[63:32];    a_i_i = a_i[31:0];
@@ -26,9 +28,22 @@ module POINT2 (
     temp_a_o = {{a_i_r + b_i_r},{a_i_i + b_i_i}};
     temp_b_o = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
 
-    a_o = {temp_a_o[55:40], temp_a_o[23:8]};
-    b_o = {temp_b_o[55:40], temp_b_o[23:8]};
+    next_a_o_d1 = {temp_a_o[55:40], temp_a_o[23:8]};
+    next_b_o_d1 = {temp_b_o[55:40], temp_b_o[23:8]};
 
+    a_o = a_o_d1;
+    b_o = b_o_d1;
+
+  end
+
+  always @(posedge clk or posedge rst)begin
+    if(rst)begin
+      a_o_d1 <= 0;
+      b_o_d1 <= 0;
+    end else begin
+      a_o_d1 <= next_a_o_d1;
+      b_o_d1 <= next_b_o_d1;
+    end
   end
 endmodule
 
@@ -56,11 +71,17 @@ module POINT4 (
   
   reg signed [63:0] point2_1_i1, point2_1_i2;
   reg signed [63:0] point2_2_i1, point2_2_i2;
+
+  reg signed [63:0] point2_1_d1, point2_1_d2;
+  reg signed [63:0] next_point2_1_d1, next_point2_1_d2;
+  reg signed [63:0] point2_2_d1, point2_2_d2;
+  reg signed [63:0] next_point2_2_d1, next_point2_2_d2;
+
   wire signed [31:0] point2_1_o1, point2_1_o2;
   wire signed [31:0] point2_2_o1, point2_2_o2;
 
-  POINT2 point2_1(.a_i(point2_1_i1), .b_i(point2_1_i2), .a_o(point2_1_o1), .b_o(point2_1_o2), .clk(clk), .rst(rst));
-  POINT2 point2_2(.a_i(point2_2_i1), .b_i(point2_2_i2), .a_o(point2_2_o1), .b_o(point2_2_o2), .clk(clk), .rst(rst));
+  POINT2 point2_1(.a_i(point2_1_d1), .b_i(point2_1_d2), .a_o(point2_1_o1), .b_o(point2_1_o2), .clk(clk), .rst(rst));
+  POINT2 point2_2(.a_i(point2_2_d1), .b_i(point2_2_d2), .a_o(point2_2_o1), .b_o(point2_2_o2), .clk(clk), .rst(rst));
 
   always @(*)begin
     a_i_r = a_i[63:32];    a_i_i = a_i[31:0];
@@ -74,8 +95,8 @@ module POINT4 (
     temp_c_i = (a_i_i - c_i_i)*W0_R;
     temp_real_1 = temp_a_r + temp_a_i; //64 bit
     temp_imaginary_1 = temp_c_r + temp_c_i; //64 bit
-    point2_1_i1 = {{a_i_r + c_i_r},{a_i_i + c_i_i}};
-    point2_2_i1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
+    next_point2_1_d1 = {{a_i_r + c_i_r},{a_i_i + c_i_i}};
+    next_point2_2_d1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
 
     temp_b_r = (b_i_r - d_i_r)*W4_R;
     temp_b_i = (d_i_i - b_i_i)*W4_I;
@@ -83,28 +104,26 @@ module POINT4 (
     temp_d_i = (b_i_i - d_i_i)*W4_R;
     temp_real_2 = temp_b_r + temp_b_i; //64 bit
     temp_imaginary_2 = temp_d_r + temp_d_i; //64 bit
-    point2_1_i2 = {{b_i_r + d_i_r},{b_i_i + d_i_i}};
-    point2_2_i2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
-
-
-    // temp_a_r = (a_i[31:16] - c_i[31:16])*W0_R;
-    // temp_a_i = (c_i[15:0] - a_i[15:0])*W0_I;
-    // temp_c_r = (a_i[31:16] - c_i[31:16])*W0_I;
-    // temp_c_i = (a_i[15:0] - c_i[15:0])*W0_R;
-    // point2_1_i1 = {{temp_a_r[47], temp_a_r[45:31]},{temp_a_i[47], temp_a_i[45:31]}};
-    // point2_1_i2 = {{temp_c_r[47], temp_c_r[45:31]},{temp_c_i[47], temp_c_i[45:31]}};
-
-    // temp_b_r = (b_i[31:16] - d_i[31:16])*W4_R;
-    // temp_b_i = (d_i[15:0] - b_i[15:0])*W4_I;
-    // temp_d_r = (b_i[31:16] - d_i[31:16])*W4_I;
-    // temp_d_i = (b_i[15:0] - d_i[15:0])*W4_R;
-    // point2_2_i1 = {{temp_b_r[47], temp_b_r[45:31]},{temp_b_i[47], temp_b_i[45:31]}};
-    // point2_2_i2 = {{temp_d_r[47], temp_d_r[45:31]},{temp_d_i[47], temp_d_i[45:31]}};
+    next_point2_1_d2 = {{b_i_r + d_i_r},{b_i_i + d_i_i}};
+    next_point2_2_d2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
 
     a_o = point2_1_o1;
     b_o = point2_1_o2;
     c_o = point2_2_o1;
     d_o = point2_2_o2;
+  end
+  always @(posedge clk or posedge rst)begin
+    if(rst)begin
+      point2_1_d1 <= 0;
+      point2_1_d2 <= 0;
+      point2_2_d1 <= 0;
+      point2_2_d2 <= 0;
+    end else begin
+      point2_1_d1 <= next_point2_1_d1;
+      point2_1_d2 <= next_point2_1_d2;
+      point2_2_d1 <= next_point2_2_d1;
+      point2_2_d2 <= next_point2_2_d2; 
+    end
   end
 endmodule
 
@@ -141,14 +160,20 @@ module POINT8 (
 
   reg signed [63:0] point4_1_i1, point4_1_i2, point4_1_i3, point4_1_i4;
   reg signed [63:0] point4_2_i1, point4_2_i2, point4_2_i3, point4_2_i4;
+
+  reg signed [63:0] point4_1_d1, point4_1_d2, point4_1_d3, point4_1_d4;
+  reg signed [63:0] next_point4_1_d1, next_point4_1_d2, next_point4_1_d3, next_point4_1_d4;
+  reg signed [63:0] point4_2_d1, point4_2_d2, point4_2_d3, point4_2_d4;
+  reg signed [63:0] next_point4_2_d1, next_point4_2_d2, next_point4_2_d3, next_point4_2_d4;
+
   wire signed [31:0] point4_1_o1, point4_1_o2, point4_1_o3, point4_1_o4;
   wire signed [31:0] point4_2_o1, point4_2_o2, point4_2_o3, point4_2_o4;
   reg signed [31:0] a_i_r, a_i_i, b_i_r, b_i_i, c_i_r, c_i_i, d_i_r, d_i_i;
   reg signed [31:0] e_i_r, e_i_i, f_i_r, f_i_i, g_i_r, g_i_i, h_i_r, h_i_i;
 
-  POINT4 point4_1(.a_i(point4_1_i1), .b_i(point4_1_i2),.c_i(point4_1_i3), .d_i(point4_1_i4), .a_o(point4_1_o1), .b_o(point4_1_o2), .c_o(point4_1_o3), .d_o(point4_1_o4),
+  POINT4 point4_1(.a_i(point4_1_d1), .b_i(point4_1_d2),.c_i(point4_1_d3), .d_i(point4_1_d4), .a_o(point4_1_o1), .b_o(point4_1_o2), .c_o(point4_1_o3), .d_o(point4_1_o4),
                   .clk(clk), .rst(rst));
-  POINT4 point4_2(.a_i(point4_2_i1), .b_i(point4_2_i2),.c_i(point4_2_i3), .d_i(point4_2_i4), .a_o(point4_2_o1), .b_o(point4_2_o2), .c_o(point4_2_o3), .d_o(point4_2_o4),
+  POINT4 point4_2(.a_i(point4_2_d1), .b_i(point4_2_d2),.c_i(point4_2_d3), .d_i(point4_2_d4), .a_o(point4_2_o1), .b_o(point4_2_o2), .c_o(point4_2_o3), .d_o(point4_2_o4),
                   .clk(clk), .rst(rst));
 
   always @(*)begin
@@ -167,8 +192,8 @@ module POINT8 (
     temp_e_i = (a_i_i - e_i_i)*W0_R;
     temp_real_1 = temp_a_r + temp_a_i; //64 bit
     temp_imaginary_1 = temp_e_r + temp_e_i; //64 bit
-    point4_1_i1 = {{a_i_r + e_i_r},{a_i_i + e_i_i}};
-    point4_2_i1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
+    next_point4_1_d1 = {{a_i_r + e_i_r},{a_i_i + e_i_i}};
+    next_point4_2_d1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
 
     temp_b_r = (b_i_r - f_i_r)*W2_R;
     temp_b_i = (f_i_i - b_i_i)*W2_I;
@@ -176,8 +201,8 @@ module POINT8 (
     temp_f_i = (b_i_i - f_i_i)*W2_R;
     temp_real_2 = temp_b_r + temp_b_i; //64 bit
     temp_imaginary_2 = temp_f_r + temp_f_i; //64 bit
-    point4_1_i2 = {{b_i_r + f_i_r},{b_i_i + f_i_i}};
-    point4_2_i2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
+    next_point4_1_d2 = {{b_i_r + f_i_r},{b_i_i + f_i_i}};
+    next_point4_2_d2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
 
     temp_c_r = (c_i_r - g_i_r)*W4_R;
     temp_c_i = (g_i_i - c_i_i)*W4_I;
@@ -185,8 +210,8 @@ module POINT8 (
     temp_g_i = (c_i_i - g_i_i)*W4_R;
     temp_real_3 = temp_c_r + temp_c_i; //64 bit
     temp_imaginary_3 = temp_g_r + temp_g_i; //64 bit
-    point4_1_i3 = {{c_i_r + g_i_r},{c_i_i + g_i_i}};
-    point4_2_i3 = {{(temp_real_3[63]==1)? {temp_real_3[47:16]+1}:{temp_real_3[47:16]}},{(temp_imaginary_3[63]==1)? {temp_imaginary_3[47:16]+1}:temp_imaginary_3[47:16]}};
+    next_point4_1_d3 = {{c_i_r + g_i_r},{c_i_i + g_i_i}};
+    next_point4_2_d3 = {{(temp_real_3[63]==1)? {temp_real_3[47:16]+1}:{temp_real_3[47:16]}},{(temp_imaginary_3[63]==1)? {temp_imaginary_3[47:16]+1}:temp_imaginary_3[47:16]}};
 
     temp_d_r = (d_i_r - h_i_r)*W6_R;
     temp_d_i = (h_i_i - d_i_i)*W6_I;
@@ -194,8 +219,8 @@ module POINT8 (
     temp_h_i = (d_i_i - h_i_i)*W6_R;
     temp_real_4 = temp_d_r + temp_d_i; //64 bit
     temp_imaginary_4 = temp_h_r + temp_h_i; //64 bit
-    point4_1_i4 = {{d_i_r + h_i_r},{d_i_i + h_i_i}};
-    point4_2_i4 = {{(temp_real_4[63]==1)? {temp_real_4[47:16]+1}:{temp_real_4[47:16]}},{(temp_imaginary_4[63]==1)? {temp_imaginary_4[47:16]+1}:temp_imaginary_4[47:16]}};
+    next_point4_1_d4 = {{d_i_r + h_i_r},{d_i_i + h_i_i}};
+    next_point4_2_d4 = {{(temp_real_4[63]==1)? {temp_real_4[47:16]+1}:{temp_real_4[47:16]}},{(temp_imaginary_4[63]==1)? {temp_imaginary_4[47:16]+1}:temp_imaginary_4[47:16]}};
 
     a_o = point4_1_o1;
     b_o = point4_1_o2;
@@ -206,6 +231,28 @@ module POINT8 (
     g_o = point4_2_o3;
     h_o = point4_2_o4;
 
+  end
+
+  always @(posedge clk or posedge rst)begin
+    if(rst)begin
+      point4_1_d1 <= 0;
+      point4_1_d2 <= 0;
+      point4_1_d3 <= 0;
+      point4_1_d4 <= 0;
+      point4_2_d1 <= 0;
+      point4_2_d2 <= 0;
+      point4_2_d3 <= 0;
+      point4_2_d4 <= 0;
+    end else begin
+      point4_1_d1 <= next_point4_1_d1;
+      point4_1_d2 <= next_point4_1_d2;
+      point4_1_d3 <= next_point4_1_d3;
+      point4_1_d4 <= next_point4_1_d4;
+      point4_2_d1 <= next_point4_2_d1;
+      point4_2_d2 <= next_point4_2_d2;
+      point4_2_d3 <= next_point4_2_d3;
+      point4_2_d4 <= next_point4_2_d4;
+    end
   end
 
 endmodule
@@ -274,10 +321,17 @@ module POINT16 (
   wire signed [31:0] point8_1_o1, point8_1_o2, point8_1_o3, point8_1_o4, point8_1_o5, point8_1_o6, point8_1_o7, point8_1_o8;
   wire signed [31:0] point8_2_o1, point8_2_o2, point8_2_o3, point8_2_o4, point8_2_o5, point8_2_o6, point8_2_o7, point8_2_o8;
 
-  POINT8 point8_1(.a_i(point8_1_i1), .b_i(point8_1_i2), .c_i(point8_1_i3), .d_i(point8_1_i4), .e_i(point8_1_i5), .f_i(point8_1_i6), .g_i(point8_1_i7), .h_i(point8_1_i8),
+  reg signed [63:0] point8_1_d1, point8_1_d2, point8_1_d3, point8_1_d4, point8_1_d5, point8_1_d6, point8_1_d7, point8_1_d8;
+  reg signed [63:0] point8_2_d1, point8_2_d2, point8_2_d3, point8_2_d4, point8_2_d5, point8_2_d6, point8_2_d7, point8_2_d8;
+  reg signed [63:0] next_point8_1_d1, next_point8_1_d2, next_point8_1_d3, next_point8_1_d4, next_point8_1_d5, next_point8_1_d6, next_point8_1_d7, next_point8_1_d8;
+  reg signed [63:0] next_point8_2_d1, next_point8_2_d2, next_point8_2_d3, next_point8_2_d4, next_point8_2_d5, next_point8_2_d6, next_point8_2_d7, next_point8_2_d8;
+
+  
+
+  POINT8 point8_1(.a_i(point8_1_d1), .b_i(point8_1_d2), .c_i(point8_1_d3), .d_i(point8_1_d4), .e_i(point8_1_d5), .f_i(point8_1_d6), .g_i(point8_1_d7), .h_i(point8_1_d8),
                   .a_o(point8_1_o1), .b_o(point8_1_o2), .c_o(point8_1_o3), .d_o(point8_1_o4), .e_o(point8_1_o5), .f_o(point8_1_o6), .g_o(point8_1_o7), .h_o(point8_1_o8),
                   .clk(clk), .rst(rst) );
-  POINT8 point8_2(.a_i(point8_2_i1), .b_i(point8_2_i2), .c_i(point8_2_i3), .d_i(point8_2_i4), .e_i(point8_2_i5), .f_i(point8_2_i6), .g_i(point8_2_i7), .h_i(point8_2_i8), 
+  POINT8 point8_2(.a_i(point8_2_d1), .b_i(point8_2_d2), .c_i(point8_2_d3), .d_i(point8_2_d4), .e_i(point8_2_d5), .f_i(point8_2_d6), .g_i(point8_2_d7), .h_i(point8_2_d8), 
                   .a_o(point8_2_o1), .b_o(point8_2_o2), .c_o(point8_2_o3), .d_o(point8_2_o4), .e_o(point8_2_o5), .f_o(point8_2_o6), .g_o(point8_2_o7), .h_o(point8_2_o8),
                   .clk(clk), .rst(rst) );
 
@@ -292,8 +346,8 @@ module POINT16 (
     temp_bd = a_i[31:0] + i_i[31:0]; //32 bit imaginary
     temp_real_1 = temp_a_r + temp_a_i; //64 bit
     temp_imaginary_1 = temp_i_r + temp_i_i; //64 bit
-    point8_1_i1 = {{temp_ac}, {temp_bd}};
-    point8_2_i1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
+    next_point8_1_d1 = {{temp_ac}, {temp_bd}};
+    next_point8_2_d1 = {{(temp_real_1[63]==1)? {temp_real_1[47:16]+1}:{temp_real_1[47:16]}},{(temp_imaginary_1[63]==1)? {temp_imaginary_1[47:16]+1}:temp_imaginary_1[47:16]}};
 
 
     b_i_r = b_i[63:32];    b_i_i = b_i[31:0];    j_i_r = j_i[63:32];    j_i_i = j_i[31:0];
@@ -303,8 +357,8 @@ module POINT16 (
     temp_j_i = (b_i_i - j_i_i)*W1_R;
     temp_real_2 = temp_b_r + temp_b_i; //64 bit
     temp_imaginary_2 = temp_j_r + temp_j_i; //64 bit
-    point8_1_i2 = {{b_i[63:32] + j_i[63:32]},{b_i[31:0] + j_i[31:0]}};
-    point8_2_i2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
+    next_point8_1_d2 = {{b_i[63:32] + j_i[63:32]},{b_i[31:0] + j_i[31:0]}};
+    next_point8_2_d2 = {{(temp_real_2[63]==1)? {temp_real_2[47:16]+1}:{temp_real_2[47:16]}},{(temp_imaginary_2[63]==1)? {temp_imaginary_2[47:16]+1}:temp_imaginary_2[47:16]}};
 
     c_i_r = c_i[63:32];  c_i_i = c_i[31:0];  k_i_r = k_i[63:32]; k_i_i = k_i[31:0];
     temp_c_r = (c_i_r - k_i_r)*W2_R;
@@ -313,8 +367,8 @@ module POINT16 (
     temp_k_i = (c_i_i - k_i_i)*W2_R;
     temp_real_3 = temp_c_r + temp_c_i; //64 bit
     temp_imaginary_3 = temp_k_r + temp_k_i; //64 bit
-    point8_1_i3 = {{c_i_r + k_i_r},{c_i_i + k_i_i}};
-    point8_2_i3 = {{(temp_real_3[63]==1)? {temp_real_3[47:16]+1}:{temp_real_3[47:16]}},{(temp_imaginary_3[47]==1)? {temp_imaginary_3[47:16]+1}:temp_imaginary_3[47:16]}};
+    next_point8_1_d3 = {{c_i_r + k_i_r},{c_i_i + k_i_i}};
+    next_point8_2_d3 = {{(temp_real_3[63]==1)? {temp_real_3[47:16]+1}:{temp_real_3[47:16]}},{(temp_imaginary_3[47]==1)? {temp_imaginary_3[47:16]+1}:temp_imaginary_3[47:16]}};
 
     d_i_r = d_i[63:32];  d_i_i = d_i[31:0]; l_i_r = l_i[63:32]; l_i_i = l_i[31:0];
     temp_d_r = (d_i_r - l_i_r)*W3_R;
@@ -323,8 +377,8 @@ module POINT16 (
     temp_l_i = (d_i_i - l_i_i)*W3_R;
     temp_real_4 = temp_d_r + temp_d_i; //64 bit
     temp_imaginary_4 = temp_l_r + temp_l_i; //64 bit
-    point8_1_i4 = {{d_i_r + l_i_r},{d_i_i + l_i_i}};
-    point8_2_i4 = {{(temp_real_4[63]==1)? {temp_real_4[47:16]+1}:{temp_real_4[47:16]}},{(temp_imaginary_4[63]==1)? {temp_imaginary_4[47:16]+1}:temp_imaginary_4[47:16]}};
+    next_point8_1_d4 = {{d_i_r + l_i_r},{d_i_i + l_i_i}};
+    next_point8_2_d4 = {{(temp_real_4[63]==1)? {temp_real_4[47:16]+1}:{temp_real_4[47:16]}},{(temp_imaginary_4[63]==1)? {temp_imaginary_4[47:16]+1}:temp_imaginary_4[47:16]}};
 
     e_i_r = e_i[63:32];  e_i_i = e_i[31:0]; m_i_r = m_i[63:32]; m_i_i = m_i[31:0];
     temp_e_r = (e_i_r - m_i_r)*W4_R;
@@ -333,8 +387,8 @@ module POINT16 (
     temp_m_i = (e_i_i - m_i_i)*W4_R;
     temp_real_5 = temp_e_r + temp_e_i; //64 bit
     temp_imaginary_5 = temp_m_r + temp_m_i; //64 bit
-    point8_1_i5 = {{e_i_r + m_i_r},{e_i_i + m_i_i}};
-    point8_2_i5 = {{(temp_real_5[63]==1)? {temp_real_5[47:16]+1}:{temp_real_5[47:16]}},{(temp_imaginary_5[63]==1)? {temp_imaginary_5[47:16]+1}:temp_imaginary_5[47:16]}};
+    next_point8_1_d5 = {{e_i_r + m_i_r},{e_i_i + m_i_i}};
+    next_point8_2_d5 = {{(temp_real_5[63]==1)? {temp_real_5[47:16]+1}:{temp_real_5[47:16]}},{(temp_imaginary_5[63]==1)? {temp_imaginary_5[47:16]+1}:temp_imaginary_5[47:16]}};
 
     f_i_r = f_i[63:32]; f_i_i = f_i[31:0]; n_i_r = n_i[63:32];  n_i_i = n_i[31:0];
     temp_f_r = (f_i_r - n_i_r)*W5_R;
@@ -343,8 +397,8 @@ module POINT16 (
     temp_n_i = (f_i_i - n_i_i)*W5_R;
     temp_real_6 = temp_f_r + temp_f_i; //64 bit
     temp_imaginary_6 = temp_n_r + temp_n_i; //64 bit
-    point8_1_i6 = {{f_i_r + n_i_r},{f_i_i + n_i_i}};
-    point8_2_i6 = {{(temp_real_6[63]==1)? {temp_real_6[47:16]+1}:{temp_real_6[47:16]}},{(temp_imaginary_6[63]==1)? {temp_imaginary_6[47:16]+1}:temp_imaginary_6[47:16]}};
+    next_point8_1_d6 = {{f_i_r + n_i_r},{f_i_i + n_i_i}};
+    next_point8_2_d6 = {{(temp_real_6[63]==1)? {temp_real_6[47:16]+1}:{temp_real_6[47:16]}},{(temp_imaginary_6[63]==1)? {temp_imaginary_6[47:16]+1}:temp_imaginary_6[47:16]}};
   
     g_i_r = g_i[63:32]; g_i_i = g_i[31:0]; o_i_r = o_i[63:32]; o_i_i = o_i[31:0];
     temp_g_r = (g_i_r - o_i_r)*W6_R;
@@ -353,8 +407,8 @@ module POINT16 (
     temp_o_i = (g_i_i - o_i_i)*W6_R;
     temp_real_7 = temp_g_r + temp_g_i; //64 bit
     temp_imaginary_7 = temp_o_r + temp_o_i; //64 bit
-    point8_1_i7 = {{g_i_r + o_i_r},{g_i_i + o_i_i}};
-    point8_2_i7 = {{(temp_real_7[63]==1)? {temp_real_7[47:16]+1}:{temp_real_7[47:16]}},{(temp_imaginary_7[63]==1)? {temp_imaginary_7[47:16]+1}:temp_imaginary_7[47:16]}};
+    next_point8_1_d7 = {{g_i_r + o_i_r},{g_i_i + o_i_i}};
+    next_point8_2_d7 = {{(temp_real_7[63]==1)? {temp_real_7[47:16]+1}:{temp_real_7[47:16]}},{(temp_imaginary_7[63]==1)? {temp_imaginary_7[47:16]+1}:temp_imaginary_7[47:16]}};
 
     h_i_r = h_i[63:32]; h_i_i = h_i[31:0]; p_i_r = p_i[63:32]; p_i_i = p_i[31:0];
     temp_h_r = (h_i_r - p_i_r)*W7_R;
@@ -363,8 +417,8 @@ module POINT16 (
     temp_p_i = (h_i_i - p_i_i)*W7_R;
     temp_real_8 = temp_h_r + temp_h_i; //64 bit
     temp_imaginary_8 = temp_p_r + temp_p_i; //64 bit
-    point8_1_i8 = {{h_i_r + p_i_r},{h_i_i + p_i_i}};
-    point8_2_i8 = {{(temp_real_8[63]==1)? {temp_real_8[47:16]+1}:{temp_real_8[47:16]}},{(temp_imaginary_8[63]==1)? {temp_imaginary_8[47:16]+1}:temp_imaginary_8[47:16]}};
+    next_point8_1_d8 = {{h_i_r + p_i_r},{h_i_i + p_i_i}};
+    next_point8_2_d8 = {{(temp_real_8[63]==1)? {temp_real_8[47:16]+1}:{temp_real_8[47:16]}},{(temp_imaginary_8[63]==1)? {temp_imaginary_8[47:16]+1}:temp_imaginary_8[47:16]}};
   
     a_o = point8_1_o1;
     b_o = point8_1_o2;
@@ -383,6 +437,44 @@ module POINT16 (
     o_o = point8_2_o7;
     p_o = point8_2_o8;
 
+  end
+
+  always @(posedge clk or posedge rst)begin
+    if(rst)begin
+      point8_1_d1 <= 0;
+      point8_1_d2 <= 0;
+      point8_1_d3 <= 0;
+      point8_1_d4 <= 0;
+      point8_1_d5 <= 0;
+      point8_1_d6 <= 0;
+      point8_1_d7 <= 0;
+      point8_1_d8 <= 0;
+      point8_2_d1 <= 0;
+      point8_2_d2 <= 0;
+      point8_2_d3 <= 0;
+      point8_2_d4 <= 0;
+      point8_2_d5 <= 0;
+      point8_2_d6 <= 0;
+      point8_2_d7 <= 0;
+      point8_2_d8 <= 0;
+    end else begin
+      point8_1_d1 <= next_point8_1_d1;
+      point8_1_d2 <= next_point8_1_d2;
+      point8_1_d3 <= next_point8_1_d3;
+      point8_1_d4 <= next_point8_1_d4;
+      point8_1_d5 <= next_point8_1_d5;
+      point8_1_d6 <= next_point8_1_d6;
+      point8_1_d7 <= next_point8_1_d7;
+      point8_1_d8 <= next_point8_1_d8;
+      point8_2_d1 <= next_point8_2_d1;
+      point8_2_d2 <= next_point8_2_d2;
+      point8_2_d3 <= next_point8_2_d3;
+      point8_2_d4 <= next_point8_2_d4;
+      point8_2_d5 <= next_point8_2_d5;
+      point8_2_d6 <= next_point8_2_d6;
+      point8_2_d7 <= next_point8_2_d7;
+      point8_2_d8 <= next_point8_2_d8;
+    end
   end
 
 endmodule
@@ -497,7 +589,12 @@ parameter COMPUTE = 3'd1;
 
 reg [2:0] state, next_state;
 reg done, next_done;
-reg fir_valid, next_fir_valid, fft_valid, next_fft_valid;
+reg fir_valid, next_fir_valid;
+reg fft_valid_d1, next_fft_valid_d1;
+reg fft_valid_d2, next_fft_valid_d2;
+reg fft_valid_d3, next_fft_valid_d3;
+reg fft_valid_d4, next_fft_valid_d4;
+reg fft_valid_d5, next_fft_valid_d5;
 reg signed [15:0] data_arr [0:31];
 reg signed [15:0] next_data_arr [0:31];
 reg [5:0] data_arr_idx, next_data_arr_idx; 
@@ -509,6 +606,7 @@ reg signed [35:0] temp_arr [0:31];
 reg [4:0] fir_arr_idx, next_fir_arr_idx;
 reg [65:0] temp;
 
+assign fft_valid = fft_valid_d5;
 integer i, j, k;
 
 POINT16 point16(.a_i(fir_arr[0]), .b_i(fir_arr[1]), .c_i(fir_arr[2]), .d_i(fir_arr[3]), .e_i(fir_arr[4]), .f_i(fir_arr[5]), .g_i(fir_arr[6]), .h_i(fir_arr[7]),
@@ -522,11 +620,18 @@ ANA analysis(.a(fft_d0), .b(fft_d1), .c(fft_d2), .d(fft_d3), .e(fft_d4), .f(fft_
 
 assign fir_d = (temp[65]==1)?  {{temp[65], temp[30:16]} + 16'd1}: {temp[65], temp[30:16]};
 
+always @( * )begin
+  next_fft_valid_d2 = fft_valid_d1;
+  next_fft_valid_d3 = fft_valid_d2;
+  next_fft_valid_d4 = fft_valid_d3;
+  next_fft_valid_d5 = fft_valid_d4;
+end
+
 always@( * )begin
   next_state = state;
   next_data_arr_idx = data_arr_idx;
   next_fir_valid = fir_valid;
-  next_fft_valid = fft_valid;
+  next_fft_valid_d1 = fft_valid_d1;
   // next_fir_data = fir_data;
   for(i = 0; i <= 31; i = i + 1)begin
       next_data_arr[i] = data_arr[i];
@@ -621,14 +726,14 @@ always@( * )begin
         // next_fft_valid = 1;
       end
       if(fir_arr_idx == 16)begin
-        next_fft_valid = 1;
+        next_fft_valid_d1 = 1;
         next_fir_arr_idx = 1;
         // next_state = FFT;
         // next_fft_valid = 0;
         next_done = 1;
       end
       else begin
-        next_fft_valid = 0;
+        next_fft_valid_d1 = 0;
         next_done = 0;
       end
 
@@ -637,7 +742,7 @@ always@( * )begin
       next_state = state;
       next_data_arr_idx = data_arr_idx;
       next_fir_valid = fir_valid;
-      next_fft_valid = fft_valid;
+      next_fft_valid_d1 = fft_valid_d1;
       next_fir_arr_idx = fir_arr_idx;
       for(i = 0; i <= 31; i = i + 1)begin
         next_data_arr[i] = data_arr[i];
@@ -657,10 +762,14 @@ always@(posedge clk or posedge rst)begin
     data_arr_idx <= 31;
     state <= IN;
     fir_valid <= 0;
-    fft_valid <= 0;
-    // fir_data <= 0;
+    fft_valid_d1 <= 0;
+    fft_valid_d2 <= 0;
+    fft_valid_d3 <= 0;
+    fft_valid_d4 <= 0;
+    fft_valid_d5 <= 0;
     fir_arr_idx <= 0;
     done <= 0;
+    
 
     for(i = 0; i < 16; i = i + 1)begin
       fir_arr[i] <= 0;
@@ -674,8 +783,11 @@ always@(posedge clk or posedge rst)begin
     state <= next_state;
     data_arr_idx <= next_data_arr_idx;
     fir_valid <= next_fir_valid;
-    fft_valid <= next_fft_valid;
-    // fir_data <= next_fir_data;
+    fft_valid_d1 <= next_fft_valid_d1;
+    fft_valid_d2 <= next_fft_valid_d2;
+    fft_valid_d3 <= next_fft_valid_d3;
+    fft_valid_d4 <= next_fft_valid_d4; 
+    fft_valid_d5 <= next_fft_valid_d5; 
     fir_arr_idx <= next_fir_arr_idx;
     done <= next_done;
     for(i = 0; i < 16; i = i + 1)begin
